@@ -59,6 +59,7 @@ class WifiChannelSwitchStressTest(WifiBaseTest):
             wutils.set_wifi_country_code(ad, WifiEnums.CountryCode.US)
 
     def setup_test(self):
+        super().setup_test()
         for ad in self.android_devices:
             ad.droid.wakeLockAcquireBright()
             ad.droid.wakeUpNow()
@@ -78,6 +79,7 @@ class WifiChannelSwitchStressTest(WifiBaseTest):
             WifiEnums.NONE_DFS_5G_FREQUENCIES)
 
     def teardown_test(self):
+        super().teardown_test()
         for ad in self.android_devices:
             ad.droid.wakeLockRelease()
             ad.droid.goToSleepNow()
@@ -92,9 +94,7 @@ class WifiChannelSwitchStressTest(WifiBaseTest):
             wutils.stop_pcap(self.packet_capture, self.pcap_procs, False)
         except signals.TestFailure:
             pass
-        for ad in self.android_devices:
-            ad.take_bug_report(test_name, begin_time)
-            ad.cat_adb_log(test_name, begin_time)
+        super().on_fail(test_name, begin_time)
 
     def check_cell_data_and_enable(self):
         """Make sure that cell data is enabled if there is a sim present.

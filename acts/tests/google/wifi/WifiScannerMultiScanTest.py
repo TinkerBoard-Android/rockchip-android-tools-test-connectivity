@@ -226,11 +226,11 @@ class WifiScannerMultiScanTest(WifiBaseTest):
         stime_channels: Dwell time plus 2ms.
         dut: Android device(s).
         wifi_chs: WiFi channels according to the device model.
-        max_bugreports: Max number of bug reports allowed.
     """
 
-    def __init__(self, controllers):
-        WifiBaseTest.__init__(self, controllers)
+    def __init__(self, configs):
+        super().__init__(configs)
+        self.enable_packet_log = True
         self.tests = (
             'test_wifi_two_scans_at_same_interval',
             'test_wifi_two_scans_at_different_interval',
@@ -241,11 +241,7 @@ class WifiScannerMultiScanTest(WifiBaseTest):
             'test_wifi_scans_24GHz_5GHz_full_result',)
 
     def setup_class(self):
-        # If running in a setup with attenuators, set attenuation on all
-        # channels to zero.
-        if getattr(self, "attenuators", []):
-            for a in self.attenuators:
-                a.set_atten(0)
+        super().setup_class()
         self.leeway = 5  # seconds, for event wait time computation
         self.stime_channel = 47  #dwell time plus 2ms
         self.dut = self.android_devices[0]
@@ -256,10 +252,8 @@ class WifiScannerMultiScanTest(WifiBaseTest):
         """ Setup the required dependencies and fetch the user params from
         config file.
         """
-        req_params = ["max_bugreports"]
         opt_param = ["reference_networks"]
-        self.unpack_userparams(
-            req_param_names=req_params, opt_param_names=opt_param)
+        self.unpack_userparams(opt_param_names=opt_param)
 
         if "AccessPoint" in self.user_params:
             self.legacy_configure_ap_and_start()
@@ -267,12 +261,6 @@ class WifiScannerMultiScanTest(WifiBaseTest):
             self.configure_openwrt_ap_and_start(open_network=True)
 
         self.wifi_chs = WifiChannelUS(self.dut.model)
-
-    def on_fail(self, test_name, begin_time):
-        if self.max_bugreports > 0:
-            self.dut.take_bug_report(test_name, begin_time)
-            self.max_bugreports -= 1
-        self.dut.cat_adb_log(test_name, begin_time)
 
     def teardown_class(self):
         if "AccessPoint" in self.user_params:

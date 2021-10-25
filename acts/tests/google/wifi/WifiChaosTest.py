@@ -112,6 +112,7 @@ class WifiChaosTest(WifiBaseTest):
         self.randomize_testcases()
 
     def setup_class(self):
+        super().setup_class()
         self.dut = self.android_devices[0]
         self.admin = 'admin' + str(random.randint(1000001, 12345678))
         wutils.wifi_test_device_init(self.dut)
@@ -155,6 +156,7 @@ class WifiChaosTest(WifiBaseTest):
         return True
 
     def setup_test(self):
+        super().setup_test()
         self.dut.droid.wakeLockAcquireBright()
         self.dut.droid.wakeUpNow()
 
@@ -165,10 +167,10 @@ class WifiChaosTest(WifiBaseTest):
         # Sleep to ensure all failed packets are captured.
         time.sleep(5)
         wutils.stop_pcap(self.pcap, self.pcap_procs, False)
-        self.dut.take_bug_report(test_name, begin_time)
-        self.dut.cat_adb_log(test_name, begin_time)
+        super().on_fail(test_name, begin_time)
 
     def teardown_test(self):
+        super().teardown_test()
         self.dut.droid.wakeLockRelease()
         self.dut.droid.goToSleepNow()
 

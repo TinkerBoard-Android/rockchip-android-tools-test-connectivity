@@ -19,15 +19,15 @@ import queue
 import sys
 import time
 
-from acts import base_test
 from acts import signals
 from acts import utils
 from acts.test_decorators import test_tracker_info
 from acts.test_utils.wifi import wifi_constants
 from acts.test_utils.wifi import wifi_test_utils as wutils
+from acts.test_utils.wifi.WifiBaseTest import WifiBaseTest
 
 
-class WifiServiceApiTest(base_test.BaseTestClass):
+class WifiServiceApiTest(WifiBaseTest):
     """This class tests the API surface of WifiManager in different wifi states.
 
        Attributes:
@@ -48,6 +48,7 @@ class WifiServiceApiTest(base_test.BaseTestClass):
             Returns:
             True is successfully configured the requirements for testig.
         """
+        super().setup_class()
         self.dut = self.android_devices[0]
         # Do a simple version of init - mainly just sync the time and enable
         # verbose logging.  We would also like to test with phones in less
@@ -64,9 +65,6 @@ class WifiServiceApiTest(base_test.BaseTestClass):
 
     def teardown_class(self):
         wutils.reset_wifi(self.dut)
-
-    def on_fail(self, test_name, begin_time):
-        self.dut.take_bug_report(test_name, begin_time)
 
     def create_and_save_wifi_network_config(self):
         """ Create a config with random SSID and password.

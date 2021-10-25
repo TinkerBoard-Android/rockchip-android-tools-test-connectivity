@@ -22,7 +22,7 @@ from acts.test_utils.wifi.rtt import rtt_test_utils as rutils
 from acts.test_utils.wifi.rtt.RttBaseTest import RttBaseTest
 
 
-class RangeApNonSupporting11McTest(WifiBaseTest, RttBaseTest):
+class RangeApNonSupporting11McTest(RttBaseTest, WifiBaseTest):
     """Test class for RTT ranging to Access Points which do not support IEEE
     802.11mc
     """

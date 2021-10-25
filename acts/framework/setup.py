@@ -48,6 +48,15 @@ install_requires = [
     'paramiko-ng',
 ]
 
+if sys.version_info < (3, 6):
+    replacements = {
+        'tzlocal': 'tzlocal<=2.1',
+        'numpy': 'numpy<=1.18.1',
+    }
+    install_requires = [replacements[pkg] if pkg in replacements else pkg for pkg in
+                        install_requires]
+    install_requires.append('scipy<=1.4.1')
+
 if sys.version_info < (3, ):
     install_requires.append('enum34')
     install_requires.append('statistics')

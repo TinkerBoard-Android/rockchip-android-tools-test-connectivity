@@ -19,6 +19,7 @@
 
 import copy
 import itertools
+import os
 import time
 
 import acts.controllers.access_point as ap
@@ -34,6 +35,9 @@ from acts.controllers.ap_lib import hostapd_ap_preset
 from acts.controllers.ap_lib import hostapd_bss_settings
 from acts.controllers.ap_lib import hostapd_constants
 from acts.controllers.ap_lib import hostapd_security
+from acts.keys import Config
+from acts.test_utils.net import net_test_utils as nutils
+from acts.test_utils.wifi import wifi_test_utils as wutils
 
 AP_1 = 0
 AP_2 = 1
@@ -41,10 +45,78 @@ MAX_AP_COUNT = 2
 
 
 class WifiBaseTest(BaseTestClass):
+
+    def __init__(self, configs):
+        super().__init__(configs)
+        self.enable_packet_log = False
+        self.packet_log_2g = hostapd_constants.AP_DEFAULT_CHANNEL_2G
+        self.packet_log_5g = hostapd_constants.AP_DEFAULT_CHANNEL_5G
+
     def setup_class(self):
         if hasattr(self, 'attenuators') and self.attenuators:
             for attenuator in self.attenuators:
                 attenuator.set_atten(0)
+        opt_param = ["pixel_models", "cnss_diag_file"]
+        self.unpack_userparams(opt_param_names=opt_param)
+        if hasattr(self, "cnss_diag_file"):
+            if isinstance(self.cnss_diag_file, list):
+                self.cnss_diag_file = self.cnss_diag_file[0]
+            if not os.path.isfile(self.cnss_diag_file):
+                self.cnss_diag_file = os.path.join(
+                    self.user_params[Config.key_config_path.value],
+                    self.cnss_diag_file)
+        if self.enable_packet_log and hasattr(self, "packet_capture"):
+            self.packet_logger = self.packet_capture[0]
+            self.packet_logger.configure_monitor_mode("2G", self.packet_log_2g)
+            self.packet_logger.configure_monitor_mode("5G", self.packet_log_5g)
+
+    def setup_test(self):
+        if (hasattr(self, "android_devices") and
+                hasattr(self, "cnss_diag_file") and
+                hasattr(self, "pixel_models")):
+            wutils.start_cnss_diags(
+                self.android_devices, self.cnss_diag_file, self.pixel_models)
+        self.tcpdump_proc = []
+        if hasattr(self, "android_devices"):
+            for ad in self.android_devices:
+                proc = nutils.start_tcpdump(ad, self.test_name)
+                self.tcpdump_proc.append((ad, proc))
+        if hasattr(self, "packet_logger"):
+            self.packet_log_pid = wutils.start_pcap(
+                    self.packet_logger, 'dual', self.test_name)
+
+    def teardown_test(self):
+        if (hasattr(self, "android_devices") and
+                hasattr(self, "cnss_diag_file") and
+                hasattr(self, "pixel_models")):
+            wutils.stop_cnss_diags(self.android_devices, self.pixel_models)
+        for proc in self.tcpdump_proc:
+            nutils.stop_tcpdump(
+                    proc[0], proc[1], self.test_name, pull_dump=False)
+        self.tcpdump_proc = []
+        if hasattr(self, "packet_logger") and self.packet_log_pid:
+            wutils.stop_pcap(
+                    self.packet_logger, self.packet_log_pid, test_status=True)
+            self.packet_log_pid = {}
+
+    def on_fail(self, test_name, begin_time):
+        if hasattr(self, "android_devices"):
+            for ad in self.android_devices:
+                ad.take_bug_report(test_name, begin_time)
+                ad.cat_adb_log(test_name, begin_time)
+                wutils.get_ssrdumps(ad)
+            if (hasattr(self, "cnss_diag_file") and
+                    hasattr(self, "pixel_models")):
+                wutils.stop_cnss_diags(self.android_devices, self.pixel_models)
+                for ad in self.android_devices:
+                    wutils.get_cnss_diag_log(ad)
+        for proc in self.tcpdump_proc:
+            nutils.stop_tcpdump(proc[0], proc[1], self.test_name)
+        self.tcpdump_proc = []
+        if hasattr(self, "packet_logger") and self.packet_log_pid:
+            wutils.stop_pcap(
+                    self.packet_logger, self.packet_log_pid, test_status=False)
+            self.packet_log_pid = {}
 
     def get_psk_network(
             self,
@@ -123,7 +195,8 @@ class WifiBaseTest(BaseTestClass):
                          hidden=False,
                          same_ssid=False,
                          ssid_length_2g=hostapd_constants.AP_SSID_LENGTH_2G,
-                         ssid_length_5g=hostapd_constants.AP_SSID_LENGTH_5G):
+                         ssid_length_5g=hostapd_constants.AP_SSID_LENGTH_5G,
+                         security_mode='none'):
         """Generates SSIDs for a open network using a random generator.
 
         Args:
@@ -134,6 +207,7 @@ class WifiBaseTest(BaseTestClass):
                        SSID.
             ssid_length_2g: Int, number of characters to use for 2G SSID.
             ssid_length_5g: Int, number of characters to use for 5G SSID.
+            security_mode: 'none' for open and 'OWE' for WPA3 OWE.
 
         Returns: A dict of 2G and 5G network lists for hostapd configuration.
 
@@ -151,13 +225,13 @@ class WifiBaseTest(BaseTestClass):
 
         network_dict_2g = {
             "SSID": open_2g_ssid,
-            "security": 'none',
+            "security": security_mode,
             "hiddenSSID": hidden
         }
 
         network_dict_5g = {
             "SSID": open_5g_ssid,
-            "security": 'none',
+            "security": security_mode,
             "hiddenSSID": hidden
         }
 
@@ -307,10 +381,13 @@ class WifiBaseTest(BaseTestClass):
             hidden=False,
             same_ssid=False,
             open_network=False,
+            wpa1_network=False,
             wpa_network=False,
             wep_network=False,
             ent_network=False,
             ent_network_pwd=False,
+            owe_network=False,
+            sae_network=False,
             radius_conf_2g=None,
             radius_conf_5g=None,
             radius_conf_pwd=None,
@@ -330,19 +407,39 @@ class WifiBaseTest(BaseTestClass):
             wep_network: Boolean, to check if wep network should be configured.
             ent_network: Boolean, to check if ent network should be configured.
             ent_network_pwd: Boolean, to check if ent pwd network should be configured.
+            owe_network: Boolean, to check if owe network should be configured.
+            sae_network: Boolean, to check if sae network should be configured.
             radius_conf_2g: dictionary with enterprise radius server details.
             radius_conf_5g: dictionary with enterprise radius server details.
             radius_conf_pwd: dictionary with enterprise radiuse server details.
             ap_count: APs to configure.
         """
+        if mirror_ap and ap_count == 1:
+             raise ValueError("ap_count cannot be 1 if mirror_ap is True.")
+
         self.reference_networks = []
+        self.wpa1_networks = []
         self.wpa_networks = []
         self.wep_networks = []
         self.ent_networks = []
         self.ent_networks_pwd = []
         self.open_network = []
-        for _ in range(ap_count):
+        self.owe_networks = []
+        self.sae_networks = []
+        self.bssid_map = []
+        for i in range(ap_count):
             network_list = []
+            if wpa1_network:
+                wpa1_dict = self.get_psk_network(mirror_ap,
+                                                 self.wpa1_networks,
+                                                 hidden, same_ssid,
+                                                 ssid_length_2g, ssid_length_5g,
+                                                 passphrase_length_2g,
+                                                 passphrase_length_5g)
+                wpa1_dict[hostapd_constants.BAND_2G]["security"] = "psk"
+                wpa1_dict[hostapd_constants.BAND_5G]["security"] = "psk"
+                self.wpa1_networks.append(wpa1_dict)
+                network_list.append(wpa1_dict)
             if wpa_network:
                 wpa_dict = self.get_psk_network(mirror_ap,
                                                 self.reference_networks,
@@ -396,10 +493,44 @@ class WifiBaseTest(BaseTestClass):
                                                   ssid_length_2g,
                                                   ssid_length_5g)
                 network_list.append(open_dict)
-            self.access_points[_].configure_ap(network_list,
+            if owe_network:
+                owe_dict = self.get_open_network(mirror_ap,
+                                                 self.owe_networks,
+                                                 hidden,
+                                                 same_ssid,
+                                                 ssid_length_2g,
+                                                 ssid_length_5g,
+                                                 "OWE")
+                owe_dict[hostapd_constants.BAND_2G]["security"] = "owe"
+                owe_dict[hostapd_constants.BAND_5G]["security"] = "owe"
+                network_list.append(owe_dict)
+            if sae_network:
+                sae_dict = self.get_psk_network(mirror_ap,
+                                                self.sae_networks,
+                                                hidden,
+                                                same_ssid,
+                                                hostapd_constants.WPA3_KEY_MGMT,
+                                                ssid_length_2g,
+                                                ssid_length_5g,
+                                                passphrase_length_2g,
+                                                passphrase_length_5g)
+                sae_dict[hostapd_constants.BAND_2G]["security"] = "sae"
+                sae_dict[hostapd_constants.BAND_5G]["security"] = "sae"
+                network_list.append(sae_dict)
+            self.access_points[i].configure_ap(network_list,
                                                channel_2g,
                                                channel_5g)
-            self.access_points[_].start_ap()
+            self.access_points[i].start_ap()
+            self.bssid_map.append(
+                self.access_points[i].get_bssids_for_wifi_networks())
+            if mirror_ap:
+                self.access_points[i+1].configure_ap(network_list,
+                                                     channel_2g,
+                                                     channel_5g)
+                self.access_points[i+1].start_ap()
+                self.bssid_map.append(
+                    self.access_points[i+1].get_bssids_for_wifi_networks())
+                break
 
     def legacy_configure_ap_and_start(
             self,

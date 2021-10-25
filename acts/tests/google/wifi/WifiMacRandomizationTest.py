@@ -107,21 +107,19 @@ class WifiMacRandomizationTest(WifiBaseTest):
         self.open_5g = self.open_network[0]["5g"]
 
     def setup_test(self):
+        super().setup_test()
         for ad in self.android_devices:
             ad.droid.wakeLockAcquireBright()
             ad.droid.wakeUpNow()
             wutils.wifi_toggle_state(ad, True)
 
     def teardown_test(self):
+        super().teardown_test()
         for ad in self.android_devices:
             ad.droid.wakeLockRelease()
             ad.droid.goToSleepNow()
         wutils.reset_wifi(self.dut)
         wutils.reset_wifi(self.dut_client)
-
-    def on_fail(self, test_name, begin_time):
-        self.dut.cat_adb_log(test_name, begin_time)
-        self.dut.take_bug_report(test_name, begin_time)
 
     def teardown_class(self):
         if "AccessPoint" in self.user_params:

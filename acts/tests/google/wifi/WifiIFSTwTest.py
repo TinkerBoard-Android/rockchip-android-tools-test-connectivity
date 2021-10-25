@@ -87,6 +87,7 @@ class WifiIFSTwTest(WifiBaseTest):
         utils.set_location_service(self.dut, True)
 
     def setup_test(self):
+        super().setup_test()
         self.dut.droid.wakeLockAcquireBright()
         self.dut.droid.wakeUpNow()
         self.dut.unlock_screen()
@@ -96,6 +97,7 @@ class WifiIFSTwTest(WifiBaseTest):
         self.dut.ed.clear_all_events()
 
     def teardown_test(self):
+        super().teardown_test()
         self.dut.droid.wakeLockRelease()
         self.dut.droid.goToSleepNow()
         wutils.reset_wifi(self.dut)

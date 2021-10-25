@@ -67,10 +67,12 @@ class WifiIOTtpeTest(WifiBaseTest):
             self.ssid_map[SSID] = network
 
     def setup_test(self):
+        super().setup_test()
         self.dut.droid.wakeLockAcquireBright()
         self.dut.droid.wakeUpNow()
 
     def teardown_test(self):
+        super().teardown_test()
         self.dut.droid.wakeLockRelease()
         self.dut.droid.goToSleepNow()
         wutils.reset_wifi(self.dut)
@@ -78,10 +80,6 @@ class WifiIOTtpeTest(WifiBaseTest):
     def teardown_class(self):
         if "iperf_server_address" in self.user_params:
             self.iperf_server.stop()
-
-    def on_fail(self, test_name, begin_time):
-        self.dut.take_bug_report(test_name, begin_time)
-        self.dut.cat_adb_log(test_name, begin_time)
 
     """Helper Functions"""
 

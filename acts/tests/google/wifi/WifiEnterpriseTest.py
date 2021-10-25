@@ -21,8 +21,6 @@ import time
 from acts import asserts
 from acts import signals
 from acts.test_decorators import test_tracker_info
-from acts.test_utils.net.net_test_utils import start_tcpdump
-from acts.test_utils.net.net_test_utils import stop_tcpdump
 from acts.test_utils.wifi import wifi_test_utils as wutils
 from acts.test_utils.wifi.WifiBaseTest import WifiBaseTest
 
@@ -36,6 +34,11 @@ Ent = WifiEnums.Enterprise
 
 
 class WifiEnterpriseTest(WifiBaseTest):
+
+    def __init__(self, configs):
+        super().__init__(configs)
+        self.enable_packet_log = True
+
     def setup_class(self):
         super().setup_class()
 
@@ -151,7 +154,6 @@ class WifiEnterpriseTest(WifiBaseTest):
         del self.config_passpoint_ttls[WifiEnums.SSID_KEY]
         # Set screen lock password so ConfigStore is unlocked.
         self.dut.droid.setDevicePassword(self.device_password)
-        self.tcpdump_pid = None
 
     def teardown_class(self):
         wutils.reset_wifi(self.dut)
@@ -159,22 +161,18 @@ class WifiEnterpriseTest(WifiBaseTest):
         self.dut.ed.clear_all_events()
 
     def setup_test(self):
+        super().setup_test()
         self.dut.droid.wifiStartTrackingStateChange()
         self.dut.droid.wakeLockAcquireBright()
         self.dut.droid.wakeUpNow()
         wutils.reset_wifi(self.dut)
         self.dut.ed.clear_all_events()
-        self.tcpdump_pid = start_tcpdump(self.dut, self.test_name)
 
     def teardown_test(self):
-        stop_tcpdump(self.dut, self.tcpdump_pid, self.test_name)
+        super().teardown_test()
         self.dut.droid.wakeLockRelease()
         self.dut.droid.goToSleepNow()
         self.dut.droid.wifiStopTrackingStateChange()
-
-    def on_fail(self, test_name, begin_time):
-        self.dut.take_bug_report(test_name, begin_time)
-        self.dut.cat_adb_log(test_name, begin_time)
 
     """Helper Functions"""
 

@@ -29,6 +29,11 @@ NETWORK_ERROR = "Device is not connected to reference network"
 
 
 class WifiNewSetupAutoJoinTest(WifiBaseTest):
+
+    def __init__(self, configs):
+        super().__init__(configs)
+        self.enable_packet_log = True
+
     def add_network_and_enable(self, network):
         """Add a network and enable it.
 
@@ -53,7 +58,7 @@ class WifiNewSetupAutoJoinTest(WifiBaseTest):
 
         self.dut = self.android_devices[0]
         wutils.wifi_test_device_init(self.dut)
-        req_params = ("atten_val", "ping_addr", "max_bugreports")
+        req_params = ("atten_val", "ping_addr")
         opt_param = ["reference_networks"]
         self.unpack_userparams(
             req_param_names=req_params, opt_param_names=opt_param)
@@ -139,12 +144,6 @@ class WifiNewSetupAutoJoinTest(WifiBaseTest):
         finally:
             self.dut.droid.wifiLockRelease()
             self.dut.droid.goToSleepNow()
-
-    def on_fail(self, test_name, begin_time):
-        if self.max_bugreports > 0:
-            self.dut.take_bug_report(test_name, begin_time)
-            self.max_bugreports -= 1
-        self.dut.cat_adb_log(test_name, begin_time)
 
     def teardown_class(self):
         for ad in self.android_devices:

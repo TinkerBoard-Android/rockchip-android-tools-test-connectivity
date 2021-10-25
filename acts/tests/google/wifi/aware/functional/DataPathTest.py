@@ -1906,9 +1906,9 @@ class DataPathTest(AwareBaseTest):
                 "DUTs do not support enough NDIs")
 
         (p_dut, s_dut, p_id, s_id, p_disc_id, s_disc_id, peer_id_on_sub,
-         peer_id_on_pub_null) = self.set_up_discovery(
+         peer_id_on_pub) = self.set_up_discovery(
              aconsts.PUBLISH_TYPE_UNSOLICITED, aconsts.SUBSCRIBE_TYPE_PASSIVE,
-             False)
+             True)
 
         p_id2, p_mac = autils.attach_with_identity(p_dut)
         s_id2, s_mac = autils.attach_with_identity(s_dut)
@@ -1936,11 +1936,10 @@ class DataPathTest(AwareBaseTest):
             # request in-band network (to completion)
             p_req_key = self.request_network(
                 p_dut,
-                p_dut.droid.wifiAwareCreateNetworkSpecifier(p_disc_id, None))
+                p_dut.droid.wifiAwareCreateNetworkSpecifier(p_disc_id, peer_id_on_pub))
             s_req_key = self.request_network(
                 s_dut,
-                s_dut.droid.wifiAwareCreateNetworkSpecifier(
-                    s_disc_id, peer_id_on_sub))
+                s_dut.droid.wifiAwareCreateNetworkSpecifier(s_disc_id, peer_id_on_sub))
 
             # Publisher & Subscriber: wait for network formation
             p_net_event_nc = autils.wait_for_event_with_keys(
@@ -2019,11 +2018,10 @@ class DataPathTest(AwareBaseTest):
             # request in-band network (to completion)
             p_req_key = self.request_network(
                 p_dut,
-                p_dut.droid.wifiAwareCreateNetworkSpecifier(p_disc_id, None))
+                p_dut.droid.wifiAwareCreateNetworkSpecifier(p_disc_id, peer_id_on_pub))
             s_req_key = self.request_network(
                 s_dut,
-                s_dut.droid.wifiAwareCreateNetworkSpecifier(
-                    s_disc_id, peer_id_on_sub))
+                s_dut.droid.wifiAwareCreateNetworkSpecifier(s_disc_id, peer_id_on_sub))
 
             # Publisher & Subscriber: wait for network formation
             p_net_event_nc = autils.wait_for_event_with_keys(

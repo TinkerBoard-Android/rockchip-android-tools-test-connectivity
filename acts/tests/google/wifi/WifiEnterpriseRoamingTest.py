@@ -34,6 +34,11 @@ Ent = WifiEnums.Enterprise
 
 
 class WifiEnterpriseRoamingTest(WifiBaseTest):
+
+    def __init__(self, configs):
+        super().__init__(configs)
+        self.enable_packet_log = True
+
     def setup_class(self):
         super().setup_class()
 
@@ -59,13 +64,22 @@ class WifiEnterpriseRoamingTest(WifiBaseTest):
                 ap_count=2,
                 radius_conf_2g=self.radius_conf_2g,
                 radius_conf_5g=self.radius_conf_5g,)
+        elif "OpenWrtAP" in self.user_params:
+            self.configure_openwrt_ap_and_start(
+                mirror_ap=True,
+                ent_network=True,
+                ap_count=2,
+                radius_conf_2g=self.radius_conf_2g,
+                radius_conf_5g=self.radius_conf_5g,)
         self.ent_network_2g_a = self.ent_networks[0]["2g"]
         self.ent_network_2g_b = self.ent_networks[1]["2g"]
-        self.bssid_2g_a = self.ent_network_2g_a[WifiEnums.BSSID_KEY.lower()]
-        self.bssid_2g_b = self.ent_network_2g_b[WifiEnums.BSSID_KEY.lower()]
         self.ent_roaming_ssid = self.ent_network_2g_a[WifiEnums.SSID_KEY]
-        self.bssid_a = self.bssid_2g_a
-        self.bssid_b = self.bssid_2g_b
+        if "AccessPoint" in self.user_params:
+            self.bssid_a = self.ent_network_2g_a[WifiEnums.BSSID_KEY.lower()]
+            self.bssid_b = self.ent_network_2g_b[WifiEnums.BSSID_KEY.lower()]
+        elif "OpenWrtAP" in self.user_params:
+            self.bssid_a = self.bssid_map[0]["2g"][self.ent_roaming_ssid]
+            self.bssid_b = self.bssid_map[1]["2g"][self.ent_roaming_ssid]
 
         self.config_peap = {
             Ent.EAP: int(EAP.PEAP),
@@ -97,6 +111,8 @@ class WifiEnterpriseRoamingTest(WifiBaseTest):
         }
         self.attn_a = self.attenuators[0]
         self.attn_b = self.attenuators[2]
+        if "OpenWrtAP" in self.user_params:
+            self.attn_b = self.attenuators[1]
         # Set screen lock password so ConfigStore is unlocked.
         self.dut.droid.setDevicePassword(self.device_password)
         self.set_attns("default")
@@ -108,6 +124,7 @@ class WifiEnterpriseRoamingTest(WifiBaseTest):
         self.set_attns("default")
 
     def setup_test(self):
+        super().setup_test()
         self.dut.droid.wifiStartTrackingStateChange()
         self.dut.droid.wakeLockAcquireBright()
         self.dut.droid.wakeUpNow()
@@ -115,14 +132,11 @@ class WifiEnterpriseRoamingTest(WifiBaseTest):
         self.dut.ed.clear_all_events()
 
     def teardown_test(self):
+        super().teardown_test()
         self.dut.droid.wakeLockRelease()
         self.dut.droid.goToSleepNow()
         self.dut.droid.wifiStopTrackingStateChange()
         self.set_attns("default")
-
-    def on_fail(self, test_name, begin_time):
-        self.dut.take_bug_report(test_name, begin_time)
-        self.dut.cat_adb_log(test_name, begin_time)
 
     def set_attns(self, attn_val_name):
         """Sets attenuation values on attenuators used in this test.

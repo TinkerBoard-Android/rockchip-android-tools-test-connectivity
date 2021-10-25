@@ -20,7 +20,6 @@ import time
 import traceback
 
 from acts import asserts
-from acts import base_test
 from acts import utils
 from acts.test_decorators import test_tracker_info
 from acts.test_utils.wifi import wifi_constants
@@ -45,8 +44,9 @@ class WifiScannerScanError(Exception):
 
 
 class WifiScannerScanTest(WifiBaseTest):
-    def __init__(self, controllers):
-        WifiBaseTest.__init__(self, controllers)
+    def __init__(self, configs):
+        super().__init__(configs)
+        self.enable_packet_log = True
         # TODO(angli): Remove this list.
         # There are order dependencies among these tests so we'll have to leave
         # it here for now. :(
@@ -71,9 +71,10 @@ class WifiScannerScanTest(WifiBaseTest):
             "test_wifi_scanner_dual_radio_high_accuracy")
 
     def setup_class(self):
+        super().setup_class()
         self.dut = self.android_devices[0]
         wutils.wifi_test_device_init(self.dut)
-        req_params = ("run_extended_test", "ping_addr", "max_bugreports", "dbs_supported_models")
+        req_params = ("run_extended_test", "ping_addr", "dbs_supported_models")
         opt_param = ["reference_networks"]
         self.unpack_userparams(
             req_param_names=req_params, opt_param_names=opt_param)
@@ -100,15 +101,9 @@ class WifiScannerScanTest(WifiBaseTest):
         self.attenuators[1].set_atten(0)
 
     def teardown_test(self):
-        base_test.BaseTestClass.teardown_test(self)
+        super().teardown_test()
         self.log.debug("Shut down all wifi scanner activities.")
         self.dut.droid.wifiScannerShutdown()
-
-    def on_fail(self, test_name, begin_time):
-        if self.max_bugreports > 0:
-            self.dut.take_bug_report(test_name, begin_time)
-            self.max_bugreports -= 1
-        self.dut.cat_adb_log(test_name, begin_time)
 
     def teardown_class(self):
         if "AccessPoint" in self.user_params:

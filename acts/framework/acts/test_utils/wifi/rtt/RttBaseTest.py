@@ -14,15 +14,31 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+import os
+
 from acts import asserts
 from acts import utils
 from acts.base_test import BaseTestClass
+from acts.keys import Config
+from acts.test_utils.net import net_test_utils as nutils
 from acts.test_utils.wifi import wifi_test_utils as wutils
 from acts.test_utils.wifi.rtt import rtt_const as rconsts
 from acts.test_utils.wifi.rtt import rtt_test_utils as rutils
 
 
 class RttBaseTest(BaseTestClass):
+
+    def setup_class(self):
+        opt_param = ["pixel_models", "cnss_diag_file"]
+        self.unpack_userparams(opt_param_names=opt_param)
+        if hasattr(self, "cnss_diag_file"):
+            if isinstance(self.cnss_diag_file, list):
+                self.cnss_diag_file = self.cnss_diag_file[0]
+            if not os.path.isfile(self.cnss_diag_file):
+                self.cnss_diag_file = os.path.join(
+                    self.user_params[Config.key_config_path.value],
+                    self.cnss_diag_file)
+
     def setup_test(self):
         required_params = ("lci_reference", "lcr_reference",
                            "rtt_reference_distance_mm",
@@ -37,6 +53,15 @@ class RttBaseTest(BaseTestClass):
         self.rtt_max_margin_exceeded_rate_two_sided_rtt_percentage = 10
         self.rtt_max_margin_exceeded_rate_one_sided_rtt_percentage = 50
         self.rtt_min_expected_rssi_dbm = -100
+
+        if hasattr(self, "cnss_diag_file") and hasattr(self, "pixel_models"):
+            wutils.start_cnss_diags(
+                self.android_devices, self.cnss_diag_file, self.pixel_models)
+        self.tcpdump_proc = []
+        if hasattr(self, "android_devices"):
+            for ad in self.android_devices:
+                proc = nutils.start_tcpdump(ad, self.test_name)
+                self.tcpdump_proc.append((ad, proc))
 
         for ad in self.android_devices:
             utils.set_location_service(ad, True)
@@ -55,6 +80,12 @@ class RttBaseTest(BaseTestClass):
             ad.rtt_capabilities = rutils.get_rtt_capabilities(ad)
 
     def teardown_test(self):
+        if hasattr(self, "cnss_diag_file") and hasattr(self, "pixel_models"):
+            wutils.stop_cnss_diags(self.android_devices, self.pixel_models)
+        for proc in self.tcpdump_proc:
+            nutils.stop_tcpdump(
+                    proc[0], proc[1], self.test_name, pull_dump=False)
+        self.tcpdump_proc = []
         for ad in self.android_devices:
             if not ad.droid.doesDeviceSupportWifiRttFeature():
                 return
@@ -66,3 +97,11 @@ class RttBaseTest(BaseTestClass):
         for ad in self.android_devices:
             ad.take_bug_report(test_name, begin_time)
             ad.cat_adb_log(test_name, begin_time)
+            wutils.get_ssrdumps(ad)
+        if hasattr(self, "cnss_diag_file") and hasattr(self, "pixel_models"):
+            wutils.stop_cnss_diags(self.android_devices, self.pixel_models)
+            for ad in self.android_devices:
+                wutils.get_cnss_diag_log(ad)
+        for proc in self.tcpdump_proc:
+            nutils.stop_tcpdump(proc[0], proc[1], self.test_name)
+        self.tcpdump_proc = []

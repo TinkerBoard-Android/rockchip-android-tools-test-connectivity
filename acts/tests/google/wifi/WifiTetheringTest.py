@@ -19,7 +19,6 @@ import socket
 import time
 
 from acts import asserts
-from acts import base_test
 from acts import test_runner
 from acts import utils
 from acts.controllers import adb
@@ -34,15 +33,16 @@ from acts.test_utils.net import socket_test_utils as sutils
 from acts.test_utils.net import arduino_test_utils as dutils
 from acts.test_utils.net import net_test_utils as nutils
 from acts.test_utils.wifi import wifi_test_utils as wutils
+from acts.test_utils.wifi.WifiBaseTest import WifiBaseTest
 
 WAIT_TIME = 5
 
-class WifiTetheringTest(base_test.BaseTestClass):
+class WifiTetheringTest(WifiBaseTest):
     """ Tests for Wifi Tethering """
 
     def setup_class(self):
         """ Setup devices for tethering and unpack params """
-
+        super().setup_class()
         self.hotspot_device = self.android_devices[0]
         self.tethered_devices = self.android_devices[1:]
         req_params = ("url", "open_network")
@@ -50,35 +50,25 @@ class WifiTetheringTest(base_test.BaseTestClass):
         self.network = {"SSID": "hotspot_%s" % utils.rand_ascii_str(6),
                         "password": "pass_%s" % utils.rand_ascii_str(6)}
         self.new_ssid = "hs_%s" % utils.rand_ascii_str(6)
-        self.tcpdump_pid=[]
 
         nutils.verify_lte_data_and_tethering_supported(self.hotspot_device)
         for ad in self.tethered_devices:
             wutils.wifi_test_device_init(ad)
 
     def setup_test(self):
-        for ad in self.android_devices:
-            self.tcpdump_pid.append(nutils.start_tcpdump(ad, self.test_name))
+        super().setup_test()
         self.tethered_devices[0].droid.telephonyToggleDataConnection(False)
 
     def teardown_test(self):
+        super().teardown_test()
         if self.hotspot_device.droid.wifiIsApEnabled():
             wutils.stop_wifi_tethering(self.hotspot_device)
         self.tethered_devices[0].droid.telephonyToggleDataConnection(True)
-        for ad, pid in zip(self.android_devices, self.tcpdump_pid):
-            nutils.stop_tcpdump(ad, pid, self.test_name)
-        self.tcpdump_pid = []
-
 
     def teardown_class(self):
         """ Reset devices """
         for ad in self.tethered_devices:
             wutils.reset_wifi(ad)
-
-    def on_fail(self, test_name, begin_time):
-        """ Collect bug report on failure """
-        for ad in self.android_devices:
-            ad.take_bug_report(test_name, begin_time)
 
     """ Helper functions """
 

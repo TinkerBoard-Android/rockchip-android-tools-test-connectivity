@@ -19,9 +19,9 @@ import pprint
 import queue
 import time
 
-import acts.base_test
 from acts.test_utils.net import ui_utils as uutils
 import acts.test_utils.wifi.wifi_test_utils as wutils
+from acts.test_utils.wifi.WifiBaseTest import WifiBaseTest
 
 
 from acts import asserts
@@ -54,7 +54,7 @@ PASSWORD_TEXT = "Password"
 PASSPOINT_BUTTON = "Get Passpoint"
 BOINGO_UI_TEXT = "Online Sign Up"
 
-class WifiPasspointTest(acts.base_test.BaseTestClass):
+class WifiPasspointTest(WifiBaseTest):
     """Tests for APIs in Android's WifiManager class.
 
     Test Bed Requirement:
@@ -64,6 +64,7 @@ class WifiPasspointTest(acts.base_test.BaseTestClass):
     """
 
     def setup_class(self):
+        super().setup_class()
         self.dut = self.android_devices[0]
         wutils.wifi_test_device_init(self.dut)
         req_params = ["passpoint_networks",
@@ -78,23 +79,20 @@ class WifiPasspointTest(acts.base_test.BaseTestClass):
 
 
     def setup_test(self):
+        super().setup_test()
         self.dut.droid.wakeLockAcquireBright()
         self.dut.droid.wakeUpNow()
         self.dut.unlock_screen()
 
 
     def teardown_test(self):
+        super().teardown_test()
         self.dut.droid.wakeLockRelease()
         self.dut.droid.goToSleepNow()
         passpoint_configs = self.dut.droid.getPasspointConfigs()
         for config in passpoint_configs:
             wutils.delete_passpoint(self.dut, config)
         wutils.reset_wifi(self.dut)
-
-
-    def on_fail(self, test_name, begin_time):
-        self.dut.take_bug_report(test_name, begin_time)
-
 
     """Helper Functions"""
 
@@ -175,7 +173,7 @@ class WifiPasspointTest(acts.base_test.BaseTestClass):
 
         # Login
         uutils.wait_and_click(self.dut, text=PASSPOINT_BUTTON)
-
+        time.sleep(DEFAULT_TIMEOUT)
 
     def start_subscription_provisioning(self, state):
         """Start subscription provisioning with a default provider."""

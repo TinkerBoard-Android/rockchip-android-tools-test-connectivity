@@ -48,6 +48,9 @@ class WifiNetworkSelectorTest(WifiBaseTest):
     """These tests verify the behavior of the Android Wi-Fi Network Selector
     feature.
     """
+    def __init__(self, configs):
+        super().__init__(configs)
+        self.enable_packet_log = True
 
     def setup_class(self):
         super().setup_class()
@@ -58,29 +61,21 @@ class WifiNetworkSelectorTest(WifiBaseTest):
         self.configure_packet_capture()
 
     def setup_test(self):
+        super().setup_test()
         self.dut.droid.wakeLockAcquireBright()
         self.dut.droid.wakeUpNow()
         self.dut.ed.clear_all_events()
-        self.pcap_procs = wutils.start_pcap(
-            self.packet_capture, 'dual', self.test_name)
         for a in self.attenuators:
             a.set_atten(MAX_ATTN)
         time.sleep(ATTN_SLEEP)
 
     def teardown_test(self):
+        super().teardown_test()
         for a in self.attenuators:
             a.set_atten(MIN_ATTN)
         wutils.reset_wifi(self.dut)
         self.dut.droid.wakeLockRelease()
         self.dut.droid.goToSleepNow()
-
-    def on_pass(self, test_name, begin_time):
-        wutils.stop_pcap(self.packet_capture, self.pcap_procs, True)
-
-    def on_fail(self, test_name, begin_time):
-        wutils.stop_pcap(self.packet_capture, self.pcap_procs, False)
-        self.dut.take_bug_report(test_name, begin_time)
-        self.dut.cat_adb_log(test_name, begin_time)
 
     def teardown_class(self):
         if "AccessPoint" in self.user_params:

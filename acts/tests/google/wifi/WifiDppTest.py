@@ -77,7 +77,7 @@ class WifiDppTest(WifiBaseTest):
         Returns:
           True is successfully configured the requirements for testing.
     """
-
+    super().setup_class()
     # Device 0 is under test. Device 1 performs the responder role
     self.dut = self.android_devices[0]
     self.helper_dev = self.android_devices[1]
@@ -131,10 +131,6 @@ class WifiDppTest(WifiBaseTest):
 
   def teardown_class(self):
     wutils.reset_wifi(self.dut)
-
-  def on_fail(self, test_name, begin_time):
-    self.dut.take_bug_report(test_name, begin_time)
-    self.dut.cat_adb_log(test_name, begin_time)
 
   def create_and_save_wifi_network_config(self, security, random_network=False,
                                           r2_auth_error=False):

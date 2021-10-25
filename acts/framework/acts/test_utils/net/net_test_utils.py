@@ -21,9 +21,6 @@ from acts import asserts
 from acts import signals
 from acts import utils
 from acts.controllers.adb import AdbError
-from acts.logger import epoch_to_log_line_timestamp
-from acts.utils import get_current_epoch_time
-from acts.logger import normalize_log_line_timestamp
 from acts.utils import start_standing_subprocess
 from acts.utils import stop_standing_subprocess
 from acts.test_utils.net import connectivity_const as cconst
@@ -287,18 +284,9 @@ def start_tcpdump(ad, test_name):
         test_name: tcpdump file name will have this
     """
     ad.log.info("Starting tcpdump on all interfaces")
-    try:
-        ad.adb.shell("killall -9 tcpdump")
-    except AdbError:
-        ad.log.warn("Killing existing tcpdump processes failed")
-    out = ad.adb.shell("ls -l %s" % TCPDUMP_PATH)
-    if "No such file" in out or not out:
-        ad.adb.shell("mkdir %s" % TCPDUMP_PATH)
-    else:
-        ad.adb.shell("rm -rf %s/*" % TCPDUMP_PATH, ignore_status=True)
-
-    begin_time = epoch_to_log_line_timestamp(get_current_epoch_time())
-    begin_time = normalize_log_line_timestamp(begin_time)
+    ad.adb.shell("killall -9 tcpdump", ignore_status=True)
+    ad.adb.shell("mkdir %s" % TCPDUMP_PATH, ignore_status=True)
+    ad.adb.shell("rm -rf %s/*" % TCPDUMP_PATH, ignore_status=True)
 
     file_name = "%s/tcpdump_%s_%s.pcap" % (TCPDUMP_PATH, ad.serial, test_name)
     ad.log.info("tcpdump file is %s", file_name)
@@ -314,14 +302,16 @@ def start_tcpdump(ad, test_name):
 def stop_tcpdump(ad,
                  proc,
                  test_name,
+                 pull_dump=True,
                  adb_pull_timeout=adb.DEFAULT_ADB_PULL_TIMEOUT):
     """Stops tcpdump on any iface
-       Pulls the tcpdump file in the tcpdump dir
+       Pulls the tcpdump file in the tcpdump dir if necessary
 
     Args:
         ad: android device object.
         proc: need to know which pid to stop
         test_name: test name to save the tcpdump file
+        pull_dump: pull tcpdump file or not
         adb_pull_timeout: timeout for adb_pull
 
     Returns:
@@ -334,12 +324,15 @@ def stop_tcpdump(ad,
         stop_standing_subprocess(proc)
     except Exception as e:
         ad.log.warning(e)
-    log_path = os.path.join(ad.log_path, test_name)
-    os.makedirs(log_path, exist_ok=True)
-    ad.adb.pull("%s/. %s" % (TCPDUMP_PATH, log_path), timeout=adb_pull_timeout)
-    ad.adb.shell("rm -rf %s/*" % TCPDUMP_PATH, ignore_status=True)
-    file_name = "tcpdump_%s_%s.pcap" % (ad.serial, test_name)
-    return "%s/%s" % (log_path, file_name)
+    if pull_dump:
+        log_path = os.path.join(ad.device_log_path, "TCPDUMP_%s" % ad.serial)
+        os.makedirs(log_path, exist_ok=True)
+        ad.adb.pull("%s/. %s" % (TCPDUMP_PATH, log_path),
+                timeout=adb_pull_timeout)
+        ad.adb.shell("rm -rf %s/*" % TCPDUMP_PATH, ignore_status=True)
+        file_name = "tcpdump_%s_%s.pcap" % (ad.serial, test_name)
+        return "%s/%s" % (log_path, file_name)
+    return None
 
 def start_tcpdump_gce_server(ad, test_name, dest_port, gce):
     """ Start tcpdump on gce server

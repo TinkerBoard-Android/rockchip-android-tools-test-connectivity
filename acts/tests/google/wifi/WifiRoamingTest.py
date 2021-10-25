@@ -72,20 +72,18 @@ class WifiRoamingTest(WifiBaseTest):
             del self.user_params["open_network"]
 
     def setup_test(self):
+        super().setup_test()
         self.dut.ed.clear_all_events()
         self.dut.droid.wakeLockAcquireBright()
         self.dut.droid.wakeUpNow()
 
     def teardown_test(self):
+        super().teardown_test()
         self.dut.droid.wakeLockRelease()
         self.dut.droid.goToSleepNow()
         wutils.reset_wifi(self.dut)
         for a in self.attenuators:
             a.set_atten(0)
-
-    def on_fail(self, test_name, begin_time):
-        self.dut.cat_adb_log(test_name, begin_time)
-        self.dut.take_bug_report(test_name, begin_time)
 
     def roaming_from_AP1_and_AP2(self, AP1_network, AP2_network):
         """Test roaming between two APs.

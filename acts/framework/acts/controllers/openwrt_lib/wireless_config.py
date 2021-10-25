@@ -19,6 +19,7 @@ class WirelessConfig(object):
     radius_server_port: Port number of radius server.
     radius_server_secret: Secret key of radius server.
     hidden: Boolean, if the wifi network is hidden.
+    ieee80211w: PMF bit of the wifi network.
   """
 
   def __init__(
@@ -34,7 +35,8 @@ class WirelessConfig(object):
       radius_server_ip=None,
       radius_server_port=None,
       radius_server_secret=None,
-      hidden=False):
+      hidden=False,
+      ieee80211w=None):
     self.name = name
     self.ssid = ssid
     self.security = security
@@ -47,4 +49,5 @@ class WirelessConfig(object):
     self.radius_server_port = radius_server_port
     self.radius_server_secret = radius_server_secret
     self.hidden = hidden
+    self.ieee80211w = ieee80211w
 

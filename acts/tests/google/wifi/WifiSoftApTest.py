@@ -15,14 +15,12 @@
 #   limitations under the License.
 
 import logging
-import os
 import queue
 import random
 import time
 
 from acts import asserts
 from acts import utils
-from acts.keys import Config
 from acts.test_decorators import test_tracker_info
 from acts.test_utils.net import socket_test_utils as sutils
 from acts.test_utils.tel import tel_defines
@@ -45,9 +43,10 @@ class WifiSoftApTest(WifiBaseTest):
         Returns:
             True if successfully configured the requirements for testing.
         """
+        super().setup_class()
         self.dut = self.android_devices[0]
         self.dut_client = self.android_devices[1]
-        req_params = ["dbs_supported_models", "pixel_models"]
+        req_params = ["dbs_supported_models"]
         opt_param = ["open_network"]
         self.unpack_userparams(
             req_param_names=req_params, opt_param_names=opt_param)
@@ -86,14 +85,6 @@ class WifiSoftApTest(WifiBaseTest):
             asserts.assert_equal(self.android_devices[2].droid.wifiGetVerboseLoggingLevel(), 1,
                 "Failed to enable WiFi verbose logging on the client dut.")
             self.dut_client_2 = self.android_devices[2]
-        if "cnss_diag_file" in self.user_params:
-            self.cnss_diag_file = self.user_params.get("cnss_diag_file")
-            if isinstance(self.cnss_diag_file, list):
-                self.cnss_diag_file = self.cnss_diag_file[0]
-            if not os.path.isfile(self.cnss_diag_file):
-                self.cnss_diag_file = os.path.join(
-                    self.user_params[Config.key_config_path.value],
-                    self.cnss_diag_file)
 
     def teardown_class(self):
         if self.dut.droid.wifiIsApEnabled():
@@ -105,26 +96,18 @@ class WifiSoftApTest(WifiBaseTest):
             del self.user_params["open_network"]
 
     def setup_test(self):
+        super().setup_test()
         for ad in self.android_devices:
             wutils.wifi_toggle_state(ad, True)
-        if hasattr(self, "cnss_diag_file"):
-            wutils.start_cnss_diags(
-                self.android_devices, self.cnss_diag_file, self.pixel_models)
 
     def teardown_test(self):
-        if hasattr(self, "cnss_diag_file"):
-            wutils.stop_cnss_diags(self.android_devices, self.pixel_models)
+        super().teardown_test()
         self.dut.log.debug("Toggling Airplane mode OFF.")
         asserts.assert_true(utils.force_airplane_mode(self.dut, False),
                             "Can not turn off airplane mode: %s" % self.dut.serial)
         if self.dut.droid.wifiIsApEnabled():
             wutils.stop_wifi_tethering(self.dut)
-
-    def on_fail(self, test_name, begin_time):
-        for ad in self.android_devices:
-            ad.take_bug_report(test_name, begin_time)
-            ad.cat_adb_log(test_name, begin_time)
-            wutils.get_cnss_diag_log(ad, test_name)
+        wutils.set_wifi_country_code(self.dut, wutils.WifiEnums.CountryCode.US)
 
     """ Helper Functions """
     def create_softap_config(self):
@@ -856,6 +839,37 @@ class WifiSoftApTest(WifiBaseTest):
 
         # Unregister callback
         self.dut.droid.unregisterSoftApCallback(callbackId)
+
+    @test_tracker_info(uuid="07b4e5b3-48ce-49b9-a83e-3e288bb88e91")
+    def test_softap_5g_preferred_country_code_de(self):
+        """Verify softap works when set to 5G preferred band
+           with country code 'DE'.
+
+        Steps:
+            1. Set country code to Germany
+            2. Save a softap configuration set to 5G preferred band.
+            3. Start softap and verify it works
+            4. Verify a client device can connect to it.
+        """
+        wutils.set_wifi_country_code(
+            self.dut, wutils.WifiEnums.CountryCode.GERMANY)
+        sap_config = self.create_softap_config()
+        wifi_network = sap_config.copy()
+        sap_config[
+            WifiEnums.AP_BAND_KEY] = WifiEnums.WIFI_CONFIG_SOFTAP_BAND_2G_5G
+        sap_config[WifiEnums.SECURITY] = WifiEnums.SoftApSecurityType.WPA2
+        asserts.assert_true(
+            self.dut.droid.wifiSetWifiApConfiguration(sap_config),
+            "Failed to set WifiAp Configuration")
+        wutils.start_wifi_tethering_saved_config(self.dut)
+        softap_conf = self.dut.droid.wifiGetApConfiguration()
+        self.log.info("softap conf: %s" % softap_conf)
+        sap_band = softap_conf[WifiEnums.AP_BAND_KEY]
+        asserts.assert_true(
+            sap_band == WifiEnums.WIFI_CONFIG_SOFTAP_BAND_2G_5G,
+            "Soft AP didn't start in 5G preferred band")
+        wutils.connect_to_wifi_network(self.dut_client, wifi_network)
+
     """ Tests End """
 
 

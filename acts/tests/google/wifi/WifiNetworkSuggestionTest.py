@@ -59,6 +59,9 @@ class WifiNetworkSuggestionTest(WifiBaseTest):
     * Several Wi-Fi networks visible to the device, including an open Wi-Fi
       network.
     """
+    def __init__(self, configs):
+        super().__init__(configs)
+        self.enable_packet_log = True
 
     def setup_class(self):
         super().setup_class()
@@ -68,7 +71,7 @@ class WifiNetworkSuggestionTest(WifiBaseTest):
         opt_param = [
             "open_network", "reference_networks", "hidden_networks", "radius_conf_2g",
             "radius_conf_5g", "ca_cert", "eap_identity", "eap_password", "passpoint_networks",
-            "altsubject_match"]
+            "domain_suffix_match"]
         self.unpack_userparams(opt_param_names=opt_param,)
 
         if "AccessPoint" in self.user_params:
@@ -98,6 +101,7 @@ class WifiNetworkSuggestionTest(WifiBaseTest):
             "pm disable com.google.android.apps.carrier.carrierwifi")
 
     def setup_test(self):
+        super().setup_test()
         self.dut.droid.wakeLockAcquireBright()
         self.dut.droid.wakeUpNow()
         self.dut.unlock_screen()
@@ -116,6 +120,7 @@ class WifiNetworkSuggestionTest(WifiBaseTest):
             self.ent_network_5g = self.ent_networks[0]["5g"]
 
     def teardown_test(self):
+        super().teardown_test()
         self.dut.droid.wakeLockRelease()
         self.dut.droid.goToSleepNow()
         self.dut.droid.wifiRemoveNetworkSuggestions([])
@@ -124,10 +129,6 @@ class WifiNetworkSuggestionTest(WifiBaseTest):
         wutils.wifi_toggle_state(self.dut, False)
         self.dut.ed.clear_all_events()
         self.clear_carrier_approved(str(self.dut.droid.telephonyGetSimCarrierId()))
-
-    def on_fail(self, test_name, begin_time):
-        self.dut.take_bug_report(test_name, begin_time)
-        self.dut.cat_adb_log(test_name, begin_time)
 
     def teardown_class(self):
         self.dut.adb.shell(
@@ -506,7 +507,7 @@ class WifiNetworkSuggestionTest(WifiBaseTest):
             Ent.PASSWORD: self.eap_password,
             Ent.PHASE2: int(EapPhase2.MSCHAPV2),
             WifiEnums.SSID_KEY: self.ent_network_2g[WifiEnums.SSID_KEY],
-            Ent.ALTSUBJECT_MATCH: self.altsubject_match,
+            Ent.DOM_SUFFIX_MATCH: self.domain_suffix_match,
         }
         config = dict(self.config_ttls)
         config[WifiEnums.Enterprise.PHASE2] = WifiEnums.EapPhase2.PAP.value

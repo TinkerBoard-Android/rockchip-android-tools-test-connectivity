@@ -26,6 +26,10 @@ MAX_ATTN = 95
 
 class WifiPnoTest(WifiBaseTest):
 
+    def __init__(self, configs):
+        super().__init__(configs)
+        self.enable_packet_log = True
+
     def setup_class(self):
         super().setup_class()
 
@@ -49,6 +53,7 @@ class WifiPnoTest(WifiBaseTest):
         self.set_attns("default")
 
     def setup_test(self):
+        super().setup_test()
         self.dut.droid.wifiStartTrackingStateChange()
         self.dut.droid.wakeLockRelease()
         self.dut.droid.goToSleepNow()
@@ -56,14 +61,11 @@ class WifiPnoTest(WifiBaseTest):
         self.dut.ed.clear_all_events()
 
     def teardown_test(self):
+        super().teardown_test()
         self.dut.droid.wifiStopTrackingStateChange()
         wutils.reset_wifi(self.dut)
         self.dut.ed.clear_all_events()
         self.set_attns("default")
-
-    def on_fail(self, test_name, begin_time):
-        self.dut.take_bug_report(test_name, begin_time)
-        self.dut.cat_adb_log(test_name, begin_time)
 
     def teardown_class(self):
         if "AccessPoint" in self.user_params:
