@@ -298,6 +298,7 @@ class WifiCountrySoftApAcsTest(WifiBaseTest):
 
         Returns: List of string; contains failure messages.
          """
+        self.init_softap_band = init_softap_band
         # Set a country code to the DUT.
         self.set_country_code_and_verify(self.dut, country)
         # Get DUT STA frequency.
